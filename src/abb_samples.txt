@@ -1,0 +1,9 @@
+topologia : TPLGA
+computador : CPUDR
+tecnologia : TCLGA
+publicidade : PBCDE
+programação : PGMCO
+almoxarifado : AMXFO
+relacionamento : RLCTO
+administração : AMNTCO
+desenvolvimento : DSVTO
