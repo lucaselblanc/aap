@@ -16,7 +16,7 @@ This approach is primarily based on arithmetic operations involving both prime a
 
 1. Clone this repository:
     ```bash
-    git clone https://github.com/singIebit/paa.git
+    git clone https://github.com/singIebit/aap.git
     cd aap
     ```
 
