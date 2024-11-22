@@ -16,23 +16,23 @@ This approach is primarily based on arithmetic operations involving both prime a
 
 1. Clone this repository:
     ```bash
-    git clone https://github.com/lucaselblanc/aap.git
-    cd aap
+    ~/$ git clone https://github.com/lucaselblanc/aap.git
+    ~/$ cd aap
     ```
 
 2. Install rust:
     ```bash
-    sudo apt-get update
-    sudo apt-get upgrade
-    sudo apt-get install rustc
+    ~/$ sudo apt-get update
+    ~/$ sudo apt-get upgrade
+    ~/$ sudo apt-get install rustc
     ```
 
 3. Compile the project:
     ```bash
-    ~/aap make
+    ~/$ aap make
     ```
 
 4. Run the program:
     ```bash
-    ~/aap/target/release$ cargo run aap
+    ~/$ aap/target/release$ cargo run aap
     ```
