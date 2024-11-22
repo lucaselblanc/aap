@@ -17,7 +17,6 @@ This approach is primarily based on arithmetic operations involving both prime a
 1. Clone this repository:
     ```bash
     ~/$ git clone https://github.com/lucaselblanc/aap.git
-    ~/$ cd aap
     ```
 
 2. Install rust:
@@ -29,6 +28,7 @@ This approach is primarily based on arithmetic operations involving both prime a
 
 3. Compile the project:
     ```bash
+    ~/$ cd aap
     ~/$ aap make
     ```
 
