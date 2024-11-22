@@ -145,9 +145,10 @@ fn apply_second_test(candidates: &[String], abbreviation: &str) -> Option<String
                 .filter(|&c| is_prime(letter_to_number(c)))
                 .count();
 
-            /* Adjustment to abbreviation to keep or discard prime numbers: */
-            //let score = composite_total as f64 / prime_sum as f64;
-            let score = (composite_total as f64 - prime_count as f64) / prime_sum as f64;
+            //Adjustment to abbreviation to keep or discard prime numbers:
+            /*let score = composite_total as f64 / prime_sum as f64;*/
+            /*let score = (composite_total as f64 - prime_count as f64) / prime_sum as f64;*/
+            let score = (composite_total as f64 % prime_count as f64) / prime_sum as f64;
             println!("Word: '{}', composite_total: {}, prime_sum: {}, score: {}", word, composite_total, prime_sum, score);
 
             (format!("{} {:.7}%", word, score), score)
