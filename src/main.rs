@@ -127,7 +127,7 @@ fn is_sequence_natural(word: &str, abbreviation: &str) -> bool {
 }
 
 //Second proof:
-fn apply_second_test(candidates: &[String], abbreviation: &str) -> Option<String> {
+/*fn apply_second_test(candidates: &[String], abbreviation: &str) -> Option<String> {
     let prime_sum: i32 = abbreviation.chars()
         .filter(|&c| is_prime(letter_to_number(c)))
         .map(letter_to_number)
@@ -163,6 +163,51 @@ fn apply_second_test(candidates: &[String], abbreviation: &str) -> Option<String
         .into_iter()
         .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
         .map(|(desc, _)| desc)
+}*/
+
+fn apply_second_test(candidates: &[String], abbreviation: &str) -> Option<String> {
+    let prime_sum: i32 = abbreviation.chars()
+        .filter(|&c| is_prime(letter_to_number(c)))
+        .map(letter_to_number)
+        .sum();
+
+    let abbrev_len = abbreviation.len() as f64;
+
+    let scored_candidates: Vec<(String, f64)> = candidates
+        .iter()
+        .map(|word| {
+            let composite_total: i32 = word.chars()
+                .filter(|&c| !is_prime(letter_to_number(c)))
+                .map(letter_to_number)
+                .sum();
+
+            let prime_count = word.chars()
+                .filter(|&c| is_prime(letter_to_number(c)))
+                .count();
+
+            let word_len = word.len() as f64;
+            let length_factor = 1.0 - ((word_len / abbrev_len) - 1.0).abs();
+
+            let score = ((composite_total as f64 - prime_count as f64) / prime_sum as f64) * length_factor;
+
+            println!(
+                "Word: '{}', composite_total: {}, prime_sum: {}, length_factor: {:.3}, score: {:.7}",
+                word, composite_total, prime_sum, length_factor, score
+            );
+
+            (word.clone(), score)
+        })
+        .collect();
+
+    println!(
+        "Candidates after the first proof: {:?}",
+        scored_candidates.iter().map(|(word, _)| word.clone()).collect::<Vec<_>>()
+    );
+
+    scored_candidates
+        .into_iter()
+        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+        .map(|(word, _)| word)
 }
 
 fn is_prime(num: i32) -> bool {
