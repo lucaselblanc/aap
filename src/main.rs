@@ -2,7 +2,7 @@
 use std::io::{self, Write};
 
 /* Probabilistic Abbreviation Algorithm (PAA) */
-/* Written by Lucas Jhn*/
+/* Written by Lucas Leblanc*/
 
 fn main() {
     let dictionary = load_dictionary("dictionary[PT-BR].txt");
