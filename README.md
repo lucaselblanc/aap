@@ -29,10 +29,10 @@ This approach is primarily based on arithmetic operations involving both prime a
 3. Compile the project:
     ```bash
     ~/$ cd aap
-    ~/$ aap make
+    ~/aap$ make
     ```
 
 4. Run the program:
     ```bash
-    ~/$ aap/target/release$ cargo run aap
+    ~/aap/target/release$ cargo run aap
     ```
