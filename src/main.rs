@@ -188,9 +188,9 @@ fn apply_second_test(candidates: &[String], abbreviation: &str) -> Option<String
             let word_len = word.len() as f64;
             let length_factor = 1.0 - ((word_len / abbrev_len) - 1.0).abs();
 
-            let score = composite_total as f64 / prime_sum as f64;
+            //let score = composite_total as f64 / prime_sum as f64;
 
-            //let score = ((composite_total as f64 - prime_count as f64) / prime_sum as f64) * length_factor;
+            let score = ((composite_total as f64 - prime_count as f64) / prime_sum as f64 / length_factor);
 
             println!(
                 "Word: '{}', composite_total: {}, prime_sum: {}, length_factor: {:.3}, score: {:.7}",
