@@ -1,8 +1,17 @@
 ﻿use std::fs;
 use std::io::{self, Write};
 
-/* Probabilistic Abbreviation Algorithm (PAA) */
-/* Written by Lucas Leblanc*/
+/******************************************************************************************************
+ * This file is part of the AAP distribution: (https://github.com/lucaselblanc/aap) *
+ * Copyright (c) 2024, 2025 Lucas Leblanc.                                                            *
+ * Distributed under the MIT software license, see the accompanying.                                  *
+ * file COPYING or https://www.opensource.org/licenses/mit-license.php.                               *
+ ******************************************************************************************************/
+
+/*****************************************
+ * Probabilistic Abbreviation Algorithm  *
+ * Written by Lucas Leblanc              *
+******************************************/
 
 fn main() {
     let dictionary = load_dictionary("dictionary[PT-BR].txt");
