@@ -41,7 +41,7 @@ This approach is primarily based on arithmetic operations involving both prime a
 
 Contributions are welcome! Feel free to open issues or submit pull requests.
 
-## Add a Star: <a href="https://github.com/lucaselblanc/pollardsrho/stargazers"><img src="https://img.shields.io/github/stars/lucaselblanc/pollardsrho?style=flat-square" alt="GitHub stars" style="vertical-align: bottom; width: 65px; height: auto;"></a>
+## Add a Star: <a href="https://github.com/lucaselblanc/aap/stargazers"><img src="https://img.shields.io/github/stars/lucaselblanc/aap?style=flat-square" alt="GitHub stars" style="vertical-align: bottom; width: 65px; height: auto;"></a>
 
 ## License
 
