@@ -2,8 +2,6 @@
 // License: GPLv3, see "LICENSE.TXT" file
 // https://github.com/RetiredC/Kang-2
 
-#pragma warning(disable : 4996)
-
 #include "defs.h"
 #include <vector>
 #include "Ec.h"
@@ -67,7 +65,6 @@ void ToLog(char* str);
 
 void ToLog(char* str)
 {
-	dlg->lsLog.AddString(str);
 	DoEvents();
 }
 
@@ -177,7 +174,7 @@ u32 __stdcall thr_proc_sota_simple(void* data)
 		EcPoint PointToSolve;
 		EcPoint NegPointToSolve;
 
-		memset(old, 0, OLD_LEN * 8 * KANG_CNT);
+		std::memset(old, 0, OLD_LEN * 8 * KANG_CNT);
 		KToSolve.RndBits(RANGE_BITS);
 
 		for (int i = 0; i < KANG_CNT; i++)
@@ -242,7 +239,7 @@ u32 __stdcall thr_proc_sota_simple(void* data)
 						else
 							kangs[i].p = ec.AddPoints(kangs[i].p, Pnt2);
 					}
-					memset(&old[OLD_LEN * i], 0, 8 * OLD_LEN);
+					std::memset(&old[OLD_LEN * i], 0, 8 * OLD_LEN);
 					continue;
 				}
 
@@ -265,8 +262,8 @@ u32 __stdcall thr_proc_sota_simple(void* data)
 					continue;
 
 				TDB_Rec nrec;
-				memcpy(nrec.x, kangs[i].p.x.data, 12);
-				memcpy(nrec.d, kangs[i].dist.data, 12);
+				std::memcpy(nrec.x, kangs[i].p.x.data, 12);
+				std::memcpy(nrec.d, kangs[i].dist.data, 12);
 				if (i < KANG_CNT / 3)
 					nrec.type = TAME;
 				else
@@ -294,19 +291,19 @@ u32 __stdcall thr_proc_sota_simple(void* data)
 					int TameType, WildType;
 					if (pref->type != TAME)
 					{
-						memcpy(w.data, pref->d, sizeof(pref->d));
-						if (pref->d[11] == 0xFF) memset(((BYTE*)w.data) + 12, 0xFF, 28);
-						memcpy(t.data, nrec.d, sizeof(nrec.d));
-						if (nrec.d[11] == 0xFF) memset(((BYTE*)t.data) + 12, 0xFF, 28);
+						std::memcpy(w.data, pref->d, sizeof(pref->d));
+						if (pref->d[11] == 0xFF) std::memset(((BYTE*)w.data) + 12, 0xFF, 28);
+						std::memcpy(t.data, nrec.d, sizeof(nrec.d));
+						if (nrec.d[11] == 0xFF) std::memset(((BYTE*)t.data) + 12, 0xFF, 28);
 						TameType = nrec.type;
 						WildType = pref->type;
 					}
 					else
 					{
-						memcpy(w.data, nrec.d, sizeof(nrec.d));
-						if (nrec.d[11] == 0xFF) memset(((BYTE*)w.data) + 12, 0xFF, 28);
-						memcpy(t.data, pref->d, sizeof(pref->d));
-						if (pref->d[11] == 0xFF) memset(((BYTE*)t.data) + 12, 0xFF, 28);
+						std::memcpy(w.data, nrec.d, sizeof(nrec.d));
+						if (nrec.d[11] == 0xFF) std::memset(((BYTE*)w.data) + 12, 0xFF, 28);
+						std::memcpy(t.data, pref->d, sizeof(pref->d));
+						if (pref->d[11] == 0xFF) std::memset(((BYTE*)t.data) + 12, 0xFF, 28);
 						TameType = TAME;
 						WildType = nrec.type;
 					}
@@ -325,7 +322,7 @@ u32 __stdcall thr_proc_sota_simple(void* data)
 				else
 				{
 					kangs[i].iter = 0;
-					memset(&old[OLD_LEN * i], 0, 8 * OLD_LEN);
+					std::memset(&old[OLD_LEN * i], 0, 8 * OLD_LEN);
 				}
 			}
 		}
@@ -587,8 +584,8 @@ u32 __stdcall thr_proc_sota_advanced(void* data)
 #endif
 
 				TDB_Rec nrec;
-				memcpy(nrec.x, kangs[i].p.x.data, 12);
-				memcpy(nrec.d, kangs[i].dist.data, 12);
+				std::memcpy(nrec.x, kangs[i].p.x.data, 12);
+				std::memcpy(nrec.d, kangs[i].dist.data, 12);
 				if (i < KANG_CNT / 3)
 					nrec.type = TAME;
 				else
@@ -616,19 +613,19 @@ u32 __stdcall thr_proc_sota_advanced(void* data)
 					int TameType, WildType;
 					if (pref->type != TAME)
 					{
-						memcpy(w.data, pref->d, sizeof(pref->d));
-						if (pref->d[11] == 0xFF) memset(((BYTE*)w.data) + 12, 0xFF, 28);
-						memcpy(t.data, nrec.d, sizeof(nrec.d));
-						if (nrec.d[11] == 0xFF) memset(((BYTE*)t.data) + 12, 0xFF, 28);
+						std::memcpy(w.data, pref->d, sizeof(pref->d));
+						if (pref->d[11] == 0xFF) std::memset(((BYTE*)w.data) + 12, 0xFF, 28);
+						std::memcpy(t.data, nrec.d, sizeof(nrec.d));
+						if (nrec.d[11] == 0xFF) std::memset(((BYTE*)t.data) + 12, 0xFF, 28);
 						TameType = nrec.type;
 						WildType = pref->type;
 					}
 					else
 					{
-						memcpy(w.data, nrec.d, sizeof(nrec.d));
-						if (nrec.d[11] == 0xFF) memset(((BYTE*)w.data) + 12, 0xFF, 28);
-						memcpy(t.data, pref->d, sizeof(pref->d));
-						if (pref->d[11] == 0xFF) memset(((BYTE*)t.data) + 12, 0xFF, 28);
+						std::memcpy(w.data, nrec.d, sizeof(nrec.d));
+						if (nrec.d[11] == 0xFF) std::memset(((BYTE*)w.data) + 12, 0xFF, 28);
+						std::memcpy(t.data, pref->d, sizeof(pref->d));
+						if (pref->d[11] == 0xFF) std::memset(((BYTE*)t.data) + 12, 0xFF, 28);
 						TameType = TAME;
 						WildType = nrec.type;
 					}
@@ -706,7 +703,7 @@ void Prepare(int Method)
 	Pnt_NegHalfRange = Pnt_HalfRange;
 	Pnt_NegHalfRange.y.NegModP();
 
-	memset((void*)loop_stats, 0, sizeof(loop_stats));
+	std::memset((void*)loop_stats, 0, sizeof(loop_stats));
 	large_loop_cnt = 0;
 	L2loop_cnt = 0;
 	BigValue.Set(1);
@@ -753,7 +750,6 @@ void TestKangaroo(int Method)
 	while (ThrCnt)
 	{
 		sprintf(s, "Threads: %d. Solved: %d of %d", ThrCnt, SolvedCnt, POINTS_CNT);
-		dlg->lbTime.SetWindowText(s);
 		Sleep(100);
 		DoEvents();
 	}
@@ -772,7 +768,7 @@ void TestKangaroo(int Method)
 	ToLog(s);
 	sprintf(s, "Average jumps per point: %llu. Average jumps per kangaroo: %llu", aver, aver / KANG_CNT);
 	ToLog(s);
-	double root = pow(2, RANGE_BITS / 2);
+	double root = std::pow(2, RANGE_BITS / 2);
 	double coef = (double)aver / root;
 	sprintf(s, "%s, K = %f (including DP overhead)", names[Method], coef);
 	ToLog(s);
@@ -780,7 +776,6 @@ void TestKangaroo(int Method)
 		ToLog("Note: RANGE_BITS is too small to measure K precisely");
 	if (POINTS_CNT < 500)
 		ToLog("Note: POINTS_CNT is too small to measure K precisely");
-	dlg->lbTime.SetWindowText("-----");
 
 	if (Method == METHOD_ADVANCED)
 	{
@@ -804,15 +799,14 @@ void TestKangaroo(int Method)
 	}
 }
 
-void main()
+int main()
 {
-	dlg = this;
 	InitEc();
-	char s[200];
 	sprintf(s, "Range: %d bits. DP: %d bits. Kangaroos: %d. Threads: %d. Points in test: %d. JMP_CNT: %d, JMP_CNT2: %d", RANGE_BITS, DP_BITS, KANG_CNT, CPU_THR_CNT, POINTS_CNT, JMP_CNT, JMP_CNT2);
-	ToLog(s);
 
-	//TestKangaroo(METHOD_SIMPLE);
+	//TestKangaroo(0);//METHOD_SIMPLE
 	//Sota:
-	TestKangaroo(METHOD_ADVANCED);
+	TestKangaroo(1);//METHOD_ADVANCED
+
+	return 0;
 }
