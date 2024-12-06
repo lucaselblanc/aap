@@ -6,8 +6,9 @@
 #include <vector>
 #include "Ec.h"
 #include "utils.h"
-
-//Verficar inutilizáveis
+#include <thread>
+#include <cstdint>
+#include <cstring>
 #include <cmath>
 #include <unistd.h>
 #include <chrono>
@@ -69,7 +70,6 @@
 // Define para substituição de BYTE //////////////REMOVE
 using BYTE = unsigned char;
 
-// Define para substituir HANDLE
 using HANDLE = std::thread::native_handle_type;//////////////REMOVE
 
 EcInt BigValue;
@@ -170,7 +170,7 @@ bool Collision_SOTA(EcPoint& pnt, EcInt t, int TameType, EcInt w, int WildType, 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-u32 __stdcall thr_proc_sota_simple(void* data)
+u32 thr_proc_sota_simple(void* data)
 {
 	TThrRec* rec = (TThrRec*)data;
 	rec->iters = 0;
@@ -288,7 +288,7 @@ u32 __stdcall thr_proc_sota_simple(void* data)
 					else
 						nrec.type = WILD2;
 
-				TDB_Rec* pref = (TDB_Rec*)db->FindOrAddDataBlock((BYTE*)&nrec, sizeof(nrec));
+				TDB_Rec* pref = (TDB_Rec*)db->FindOrAddDataBlock((uint8_t*)&nrec, sizeof(nrec));
 				if (pref)
 				{
 					if (pref->type == nrec.type)
@@ -308,18 +308,18 @@ u32 __stdcall thr_proc_sota_simple(void* data)
 					if (pref->type != TAME)
 					{
 						memcpy(w.data, pref->d, sizeof(pref->d));
-						if (pref->d[11] == 0xFF) memset(((BYTE*)w.data) + 12, 0xFF, 28);
+						if (pref->d[11] == 0xFF) memset(((uint8_t*)w.data) + 12, 0xFF, 28);
 						memcpy(t.data, nrec.d, sizeof(nrec.d));
-						if (nrec.d[11] == 0xFF) memset(((BYTE*)t.data) + 12, 0xFF, 28);
+						if (nrec.d[11] == 0xFF) memset(((uint8_t*)t.data) + 12, 0xFF, 28);
 						TameType = nrec.type;
 						WildType = pref->type;
 					}
 					else
 					{
 						memcpy(w.data, nrec.d, sizeof(nrec.d));
-						if (nrec.d[11] == 0xFF) memset(((BYTE*)w.data) + 12, 0xFF, 28);
+						if (nrec.d[11] == 0xFF) memset(((uint8_t*)w.data) + 12, 0xFF, 28);
 						memcpy(t.data, pref->d, sizeof(pref->d));
-						if (pref->d[11] == 0xFF) memset(((BYTE*)t.data) + 12, 0xFF, 28);
+						if (pref->d[11] == 0xFF) memset(((uint8_t*)t.data) + 12, 0xFF, 28);
 						TameType = TAME;
 						WildType = nrec.type;
 					}
@@ -402,7 +402,7 @@ void clear_loop(EcInt* bg, int level, int start, int end)
 	}
 }
 
-u32 __stdcall thr_proc_sota_advanced(void* data)
+u32 thr_proc_sota_advanced(void* data)
 {
 	TThrRec* rec = (TThrRec*)data;
 	rec->iters = 0;
@@ -610,7 +610,7 @@ u32 __stdcall thr_proc_sota_advanced(void* data)
 					else
 						nrec.type = WILD2;
 
-				TDB_Rec* pref = (TDB_Rec*)db->FindOrAddDataBlock((BYTE*)&nrec, sizeof(nrec));
+				TDB_Rec* pref = (TDB_Rec*)db->FindOrAddDataBlock((uint8_t*)&nrec, sizeof(nrec));//BYTE
 				if (pref)
 				{
 					if (pref->type == nrec.type)
@@ -630,18 +630,18 @@ u32 __stdcall thr_proc_sota_advanced(void* data)
 					if (pref->type != TAME)
 					{
 						memcpy(w.data, pref->d, sizeof(pref->d));
-						if (pref->d[11] == 0xFF) memset(((BYTE*)w.data) + 12, 0xFF, 28);
+						if (pref->d[11] == 0xFF) memset(((uint8_t*)w.data) + 12, 0xFF, 28);
 						memcpy(t.data, nrec.d, sizeof(nrec.d));
-						if (nrec.d[11] == 0xFF) memset(((BYTE*)t.data) + 12, 0xFF, 28);
+						if (nrec.d[11] == 0xFF) memset(((uint8_t*)t.data) + 12, 0xFF, 28);
 						TameType = nrec.type;
 						WildType = pref->type;
 					}
 					else
 					{
 						memcpy(w.data, nrec.d, sizeof(nrec.d));
-						if (nrec.d[11] == 0xFF) memset(((BYTE*)w.data) + 12, 0xFF, 28);
+						if (nrec.d[11] == 0xFF) memset(((uint8_t*)w.data) + 12, 0xFF, 28);
 						memcpy(t.data, pref->d, sizeof(pref->d));
-						if (pref->d[11] == 0xFF) memset(((BYTE*)t.data) + 12, 0xFF, 28);
+						if (pref->d[11] == 0xFF) memset(((uint8_t*)t.data) + 12, 0xFF, 28);
 						TameType = TAME;
 						WildType = nrec.type;
 					}
@@ -749,7 +749,7 @@ void TestKangaroo(int Method)
 	for (int i = 0; i < CPU_THR_CNT; i++)
 	{
 		u32 ThreadID;
-		u32 (__stdcall *thr_proc_ptr)(void*);
+		u32 (*thr_proc_ptr)(void*);
 		switch (Method)
 		{
 		case METHOD_SIMPLE:
