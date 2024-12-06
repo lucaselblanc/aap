@@ -7,6 +7,12 @@
 #include "Ec.h"
 #include "utils.h"
 
+//Verficar inutilizáveis
+#include <cmath>
+#include <unistd.h>
+#include <chrono>
+#include <iostream>
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -60,12 +66,22 @@
 	#define ESCAPE_FROM_LARGE_LOOPS
 #endif
 
-EcInt BigValue;
-void ToLog(char* str);
+// Define para substituição de BYTE //////////////REMOVE
+using BYTE = unsigned char;
 
-void ToLog(char* str)
-{
-	DoEvents();
+// Define para substituir HANDLE
+using HANDLE = std::thread::native_handle_type;//////////////REMOVE
+
+EcInt BigValue;
+
+uint64_t GetTickCount64() {
+    auto now = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
+    return static_cast<uint64_t>(duration.count());
+}
+
+void Sleep(unsigned int milliseconds) {
+    usleep(milliseconds * 1000);
 }
 
 struct EcJMP
@@ -174,7 +190,7 @@ u32 __stdcall thr_proc_sota_simple(void* data)
 		EcPoint PointToSolve;
 		EcPoint NegPointToSolve;
 
-		std::memset(old, 0, OLD_LEN * 8 * KANG_CNT);
+		memset(old, 0, OLD_LEN * 8 * KANG_CNT);
 		KToSolve.RndBits(RANGE_BITS);
 
 		for (int i = 0; i < KANG_CNT; i++)
@@ -239,7 +255,7 @@ u32 __stdcall thr_proc_sota_simple(void* data)
 						else
 							kangs[i].p = ec.AddPoints(kangs[i].p, Pnt2);
 					}
-					std::memset(&old[OLD_LEN * i], 0, 8 * OLD_LEN);
+					memset(&old[OLD_LEN * i], 0, 8 * OLD_LEN);
 					continue;
 				}
 
@@ -262,8 +278,8 @@ u32 __stdcall thr_proc_sota_simple(void* data)
 					continue;
 
 				TDB_Rec nrec;
-				std::memcpy(nrec.x, kangs[i].p.x.data, 12);
-				std::memcpy(nrec.d, kangs[i].dist.data, 12);
+				memcpy(nrec.x, kangs[i].p.x.data, 12);
+				memcpy(nrec.d, kangs[i].dist.data, 12);
 				if (i < KANG_CNT / 3)
 					nrec.type = TAME;
 				else
@@ -284,26 +300,26 @@ u32 __stdcall thr_proc_sota_simple(void* data)
 						if (*(u64*)pref->d == *(u64*)nrec.d)
 							continue;
 						//else
-						//	ToLog("key found by same wild");
+						//std::cout << "key found by same wild!" << std::endl;
 					}
 
 					EcInt w, t;
 					int TameType, WildType;
 					if (pref->type != TAME)
 					{
-						std::memcpy(w.data, pref->d, sizeof(pref->d));
-						if (pref->d[11] == 0xFF) std::memset(((BYTE*)w.data) + 12, 0xFF, 28);
-						std::memcpy(t.data, nrec.d, sizeof(nrec.d));
-						if (nrec.d[11] == 0xFF) std::memset(((BYTE*)t.data) + 12, 0xFF, 28);
+						memcpy(w.data, pref->d, sizeof(pref->d));
+						if (pref->d[11] == 0xFF) memset(((BYTE*)w.data) + 12, 0xFF, 28);
+						memcpy(t.data, nrec.d, sizeof(nrec.d));
+						if (nrec.d[11] == 0xFF) memset(((BYTE*)t.data) + 12, 0xFF, 28);
 						TameType = nrec.type;
 						WildType = pref->type;
 					}
 					else
 					{
-						std::memcpy(w.data, nrec.d, sizeof(nrec.d));
-						if (nrec.d[11] == 0xFF) std::memset(((BYTE*)w.data) + 12, 0xFF, 28);
-						std::memcpy(t.data, pref->d, sizeof(pref->d));
-						if (pref->d[11] == 0xFF) std::memset(((BYTE*)t.data) + 12, 0xFF, 28);
+						memcpy(w.data, nrec.d, sizeof(nrec.d));
+						if (nrec.d[11] == 0xFF) memset(((BYTE*)w.data) + 12, 0xFF, 28);
+						memcpy(t.data, pref->d, sizeof(pref->d));
+						if (pref->d[11] == 0xFF) memset(((BYTE*)t.data) + 12, 0xFF, 28);
 						TameType = TAME;
 						WildType = nrec.type;
 					}
@@ -313,7 +329,7 @@ u32 __stdcall thr_proc_sota_simple(void* data)
 					{
 						//bool w12 = ((pref->type == WILD) && (nrec.type == WILD2)) || ((pref->type == WILD2) && (nrec.type == WILD));
 						//if (w12) //in rare cases WILD and WILD2 can collide in mirror, in this case there is no way to find K
-						//	ToLog("W1 and W2 collides in mirror");
+						//std::cout << "W1 and W2 collides in mirror!" << std::endl;
 						continue;
 					}
 					found = true;
@@ -322,7 +338,7 @@ u32 __stdcall thr_proc_sota_simple(void* data)
 				else
 				{
 					kangs[i].iter = 0;
-					std::memset(&old[OLD_LEN * i], 0, 8 * OLD_LEN);
+					memset(&old[OLD_LEN * i], 0, 8 * OLD_LEN);
 				}
 			}
 		}
@@ -462,7 +478,7 @@ u32 __stdcall thr_proc_sota_advanced(void* data)
 #ifdef SYNTHETIC_TEST
 					if (kangs[i].total_iters > MAX_TOTAL_ITERS)
 					{
-						ToLog("Imitate successful solving");
+						std::cout << "Imitate successful solving!" << std::endl;
 						found = true;
 						break;
 					}
@@ -542,7 +558,7 @@ u32 __stdcall thr_proc_sota_advanced(void* data)
 						}
 						if (l2pnts[i].IsEqual(kangs[i].p)) //L2 loop, rare
 						{
-							//ToLog("L2 loop detected");
+							//std::cout << "L2 loop detected!" << std::endl;
 							l2detected = 1; //to break L2-loop just use next jump, it will not break the chain
 							InterlockedIncrement(&L2loop_cnt);
 
@@ -584,8 +600,8 @@ u32 __stdcall thr_proc_sota_advanced(void* data)
 #endif
 
 				TDB_Rec nrec;
-				std::memcpy(nrec.x, kangs[i].p.x.data, 12);
-				std::memcpy(nrec.d, kangs[i].dist.data, 12);
+				memcpy(nrec.x, kangs[i].p.x.data, 12);
+				memcpy(nrec.d, kangs[i].dist.data, 12);
 				if (i < KANG_CNT / 3)
 					nrec.type = TAME;
 				else
@@ -606,26 +622,26 @@ u32 __stdcall thr_proc_sota_advanced(void* data)
 						if (*(u64*)pref->d == *(u64*)nrec.d)
 							continue;
 						//else
-						//	ToLog("key found by same wild");
+						//std::cout << "key found by same wild!" << std::endl;
 					}
 
 					EcInt w, t;
 					int TameType, WildType;
 					if (pref->type != TAME)
 					{
-						std::memcpy(w.data, pref->d, sizeof(pref->d));
-						if (pref->d[11] == 0xFF) std::memset(((BYTE*)w.data) + 12, 0xFF, 28);
-						std::memcpy(t.data, nrec.d, sizeof(nrec.d));
-						if (nrec.d[11] == 0xFF) std::memset(((BYTE*)t.data) + 12, 0xFF, 28);
+						memcpy(w.data, pref->d, sizeof(pref->d));
+						if (pref->d[11] == 0xFF) memset(((BYTE*)w.data) + 12, 0xFF, 28);
+						memcpy(t.data, nrec.d, sizeof(nrec.d));
+						if (nrec.d[11] == 0xFF) memset(((BYTE*)t.data) + 12, 0xFF, 28);
 						TameType = nrec.type;
 						WildType = pref->type;
 					}
 					else
 					{
-						std::memcpy(w.data, nrec.d, sizeof(nrec.d));
-						if (nrec.d[11] == 0xFF) std::memset(((BYTE*)w.data) + 12, 0xFF, 28);
-						std::memcpy(t.data, pref->d, sizeof(pref->d));
-						if (pref->d[11] == 0xFF) std::memset(((BYTE*)t.data) + 12, 0xFF, 28);
+						memcpy(w.data, nrec.d, sizeof(nrec.d));
+						if (nrec.d[11] == 0xFF) memset(((BYTE*)w.data) + 12, 0xFF, 28);
+						memcpy(t.data, pref->d, sizeof(pref->d));
+						if (pref->d[11] == 0xFF) memset(((BYTE*)t.data) + 12, 0xFF, 28);
 						TameType = TAME;
 						WildType = nrec.type;
 					}
@@ -635,9 +651,9 @@ u32 __stdcall thr_proc_sota_advanced(void* data)
 					{
 						bool w12 = ((pref->type == WILD) && (nrec.type == WILD2)) || ((pref->type == WILD2) && (nrec.type == WILD));
 						if (w12) //in rare cases WILD and WILD2 can collide in mirror, in this case there is no way to find K
-							;// ToLog("W1 and W2 collides in mirror");
+							;// std::cout << "W1 and W2 collides in mirror!" << std::endl;
 						else
-							ToLog("Error");
+							std::cout << "Error!" << std::endl;
 						continue;
 					}
 					found = true;
@@ -703,7 +719,7 @@ void Prepare(int Method)
 	Pnt_NegHalfRange = Pnt_HalfRange;
 	Pnt_NegHalfRange.y.NegModP();
 
-	std::memset((void*)loop_stats, 0, sizeof(loop_stats));
+	memset((void*)loop_stats, 0, sizeof(loop_stats));
 	large_loop_cnt = 0;
 	L2loop_cnt = 0;
 	BigValue.Set(1);
@@ -716,10 +732,11 @@ void TestKangaroo(int Method)
 		return;
 	if (RANGE_BITS < 40)
 	{
-		ToLog("RANGE_BITS must be at least 40 bit, otherwise some formulas will stop work properly!");
+		std::cout << "RANGE_BITS must be at least 40 bit, otherwise some formulas will stop work properly!" << std::endl;
 		return;
 	}
-	ToLog("Started, please wait...");
+
+	std::cout << "Started, please wait..." << std::endl;
 	SetRndSeed(0);
 	Prepare(Method);
 	//disable this line if you want exactly same results every time (may vary anyway for multithreading)
@@ -751,31 +768,29 @@ void TestKangaroo(int Method)
 	{
 		sprintf(s, "Threads: %d. Solved: %d of %d", ThrCnt, SolvedCnt, POINTS_CNT);
 		Sleep(100);
-		DoEvents();
 	}
-	for (int i = 0; i < CPU_THR_CNT; i++)
-		CloseHandle(recs[i].hThread);
+
 	tm = GetTickCount64() - tm;
 	
 	sprintf(s, "Total time: %d sec", (int)(tm/1000));
-	ToLog(s);
+	std::cout << s << std::endl;
 	size_t iters_sum = recs[0].iters;
 	for (int i = 1; i < CPU_THR_CNT; i++)
 		iters_sum += recs[i].iters;
 
 	size_t aver = iters_sum / POINTS_CNT;
 	sprintf(s, "Total jumps for %d points: %llu", POINTS_CNT, iters_sum);
-	ToLog(s);
+	std::cout << s << std::endl;
 	sprintf(s, "Average jumps per point: %llu. Average jumps per kangaroo: %llu", aver, aver / KANG_CNT);
-	ToLog(s);
+	std::cout << s << std::endl;
 	double root = std::pow(2, RANGE_BITS / 2);
 	double coef = (double)aver / root;
 	sprintf(s, "%s, K = %f (including DP overhead)", names[Method], coef);
-	ToLog(s);
+	std::cout << s << std::endl;
 	if (RANGE_BITS < 40)
-		ToLog("Note: RANGE_BITS is too small to measure K precisely");
+		std::cout << "Note: RANGE_BITS is too small to measure K precisely" << std::endl;
 	if (POINTS_CNT < 500)
-		ToLog("Note: POINTS_CNT is too small to measure K precisely");
+		std::cout << "Note: POINTS_CNT is too small to measure K precisely" << std::endl;
 
 	if (Method == METHOD_ADVANCED)
 	{
@@ -786,16 +801,16 @@ void TestKangaroo(int Method)
 				if (loop_stats[i][j])
 				{
 					sprintf(s, "loop size %llu: %llu", j * mul, loop_stats[i][j]);
-					ToLog(s);
+					std::cout << s << std::endl;
 				}
 			mul *= MD_LEN;
 		}
 #ifdef ESCAPE_FROM_LARGE_LOOPS
 		sprintf(s, "large_loop_cnt (for all kangs and points): %llu, large_loop_cnt_per_kang: %.2f", large_loop_cnt, ((double)large_loop_cnt) / (KANG_CNT * CPU_THR_CNT));
-		ToLog(s);
+		std::cout << s << std::endl;
 #endif
 		sprintf(s, "L2 Size-2 cnt: %d", L2loop_cnt);
-		ToLog(s);
+		std::cout << s << std::endl;
 	}
 }
 
@@ -808,5 +823,5 @@ int main()
 	//Sota:
 	TestKangaroo(1);//METHOD_ADVANCED
 
-	return 0;
+	return 0;//pow
 }
