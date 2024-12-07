@@ -6,6 +6,9 @@
 #include <vector>
 #include "Ec.h"
 #include "utils.h"
+
+//Verficar inutilizáveis
+#include <atomic>
 #include <thread>
 #include <cstdint>
 #include <cstring>
@@ -70,8 +73,6 @@
 // Define para substituição de BYTE //////////////REMOVE
 using BYTE = unsigned char;
 
-using HANDLE = std::thread::native_handle_type;//////////////REMOVE
-
 EcInt BigValue;
 
 uint64_t GetTickCount64() {
@@ -106,13 +107,17 @@ EcPoint Pnt_NegHalfRange;
 EcInt Int_HalfRange;
 Ec ec;
 
-volatile long ThrCnt;
-volatile long SolvedCnt;
-volatile long ToSolveCnt;
+std::atomic<long> ThrCnt(0);
+std::atomic<long> SolvedCnt(0);
+std::atomic<long> ToSolveCnt(0);
+
+//volatile long ThrCnt;
+//volatile long SolvedCnt;
+//volatile long ToSolveCnt;
 
 struct TThrRec
 {
-	HANDLE hThread;
+	pthread_t hThread;
 	CExpKangDlg* obj;
 	u64 iters;
 	int thr_ind;
@@ -184,7 +189,7 @@ u32 thr_proc_sota_simple(void* data)
 	int max_iters = (1 << DP_BITS) * 20;
 	while (1)
 	{
-		if (InterlockedDecrement(&ToSolveCnt) < 0)
+		if (ToSolveCnt.fetch_sub(1, std::memory_order_relaxed) <= 0)
 			break;
 		EcInt KToSolve;
 		EcPoint PointToSolve;
@@ -343,11 +348,11 @@ u32 thr_proc_sota_simple(void* data)
 			}
 		}
 		db->Clear(false);
-		InterlockedIncrement(&SolvedCnt);
+		SolvedCnt.fetch_add(1, std::memory_order_relaxed);
 	}
 	free(old);
 	delete db;
-	InterlockedDecrement(&ThrCnt);
+	ThrCnt.fetch_add(1, std::memory_order_relaxed);
 	return 0;
 }
 
@@ -355,7 +360,7 @@ u32 thr_proc_sota_simple(void* data)
 
 i64 loop_stats[MD_CNT + 1][MD_LEN];
 i64 large_loop_cnt; //number of large loops (>=MD_LEN)
-u32 L2loop_cnt; //number of L2 size-2 loops
+std::atomic<u32> L2loop_cnt(0); //number of L2 size-2 loops
 
 typedef std::vector <EcInt> EcInts;
 
@@ -422,7 +427,7 @@ u32 thr_proc_sota_advanced(void* data)
 
 	while (1)
 	{
-		if (InterlockedDecrement(&ToSolveCnt) < 0)
+		if (ToSolveCnt.fetch_sub(1, std::memory_order_relaxed) <= 0)
 			break;
 		EcInt KToSolve;
 		EcPoint PointToSolve;
@@ -560,7 +565,7 @@ u32 thr_proc_sota_advanced(void* data)
 						{
 							//std::cout << "L2 loop detected!" << std::endl;
 							l2detected = 1; //to break L2-loop just use next jump, it will not break the chain
-							InterlockedIncrement(&L2loop_cnt);
+							L2loop_cnt.fetch_add(1, std::memory_order_relaxed);
 
 							//to confirm that L2 escaping works, disable these lines and set RANGE_BITS=44 JMP_CNT=JMP_CNT2=32 for a lot of L2 loops
 							rec->iters++;
@@ -662,7 +667,7 @@ u32 thr_proc_sota_advanced(void* data)
 			}
 		}
 		db->Clear(false);
-		InterlockedIncrement(&SolvedCnt);
+		SolvedCnt.fetch_add(1, std::memory_order_relaxed);
 	}
 
 	////
@@ -673,7 +678,7 @@ u32 thr_proc_sota_advanced(void* data)
 	////
 
 	delete db;
-	InterlockedDecrement(&ThrCnt);
+	ThrCnt.fetch_add(1, std::memory_order_relaxed);
 	return 0;
 }
 
@@ -746,23 +751,30 @@ void TestKangaroo(int Method)
 	ThrCnt = CPU_THR_CNT;
 	ToSolveCnt = POINTS_CNT;
 	u64 tm = GetTickCount64();
+
+	pthread_t thread_id;
+
 	for (int i = 0; i < CPU_THR_CNT; i++)
-	{
-		u32 ThreadID;
-		u32 (*thr_proc_ptr)(void*);
-		switch (Method)
-		{
-		case METHOD_SIMPLE:
-			thr_proc_ptr = thr_proc_sota_simple;
-			break;
-		case METHOD_ADVANCED:
-			thr_proc_ptr = thr_proc_sota_advanced;
-			break;
-		default:
-			return;
-		}
-		recs[i].hThread = (HANDLE)_beginthreadex(NULL, 0, thr_proc_ptr, (void*)&recs[i], 0, &ThreadID);
-	}
+    {
+        void* (*thr_proc_ptr)(void*);
+
+        switch (Method)
+        { 
+        case METHOD_SIMPLE:
+            thr_proc_ptr = thr_proc_sota_simple;
+            break;
+        case METHOD_ADVANCED:
+            thr_proc_ptr = thr_proc_sota_advanced;
+            break;
+        default:
+        return;
+        }
+
+        pthread_create(&thread_id, NULL, thr_proc_ptr, (void*)&recs[i]);
+
+        recs[i].hThread = thread_id;
+    }
+
 	char s[300];
 	while (ThrCnt)
 	{
@@ -805,13 +817,15 @@ void TestKangaroo(int Method)
 				}
 			mul *= MD_LEN;
 		}
-#ifdef ESCAPE_FROM_LARGE_LOOPS
+        #ifdef ESCAPE_FROM_LARGE_LOOPS
 		sprintf(s, "large_loop_cnt (for all kangs and points): %llu, large_loop_cnt_per_kang: %.2f", large_loop_cnt, ((double)large_loop_cnt) / (KANG_CNT * CPU_THR_CNT));
 		std::cout << s << std::endl;
-#endif
+        #endif
 		sprintf(s, "L2 Size-2 cnt: %d", L2loop_cnt);
 		std::cout << s << std::endl;
 	}
+
+	pthread_join(thread_id, NULL);
 }
 
 int main()
