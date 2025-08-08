@@ -323,33 +323,131 @@ __device__ void mod_sqr_mont_p(unsigned int *result, const unsigned int *a) {
     mod_mul_mont_p(result, a, a);
 }
 
-// Inversão modular usando extended Euclidean algorithm otimizado
-__device__ void mod_inverse_p(unsigned int *result, const unsigned int *a) {
-    unsigned int u[8], v[8], s[8], r[8];
+// Binary Extended GCD
+__device__ void mod_inverse_p_binary(unsigned int *result, const unsigned int *a) {
+    unsigned int u[8], v[8], A[8], B[8], C[8], D[8];
     unsigned int temp[8];
     
+    // Inicialização
     bignum_copy(u, a);
     bignum_copy(v, P_CONST);
-    bignum_set_ui(s, 1);
-    bignum_zero(r);
+    bignum_set_ui(A, 1); bignum_zero(B);
+    bignum_zero(C); bignum_set_ui(D, 1);
     
+    // Algoritmo Binary Extended GCD
     while (!bignum_is_zero(u)) {
-        if (bignum_is_odd(u)) {
-            if (bignum_cmp(s, r) < 0) {
-                bignum_add_carry(s, s, P_CONST);
+        // Enquanto u for par
+        while (!bignum_is_odd(u)) {
+            bignum_shr1(u, u);
+            
+            if (bignum_is_odd(A) || bignum_is_odd(B)) {
+                bignum_add_carry(A, A, P_CONST);
+                bignum_sub_borrow(B, B, a);
             }
-            bignum_sub_borrow(s, s, r);
-            bignum_sub_borrow(u, u, v);
-        } else {
-            if (bignum_is_odd(s)) {
-                bignum_add_carry(s, s, P_CONST);
-            }
-            bignum_shr1(s, s);
+            
+            bignum_shr1(A, A);
+            bignum_shr1(B, B);
         }
-        bignum_shr1(u, u);
+        
+        // Enquanto v for par
+        while (!bignum_is_odd(v)) {
+            bignum_shr1(v, v);
+            
+            if (bignum_is_odd(C) || bignum_is_odd(D)) {
+                bignum_add_carry(C, C, P_CONST);
+                bignum_sub_borrow(D, D, a);
+            }
+            
+            bignum_shr1(C, C);
+            bignum_shr1(D, D);
+        }
+        
+        // Subtrair o menor do maior
+        if (bignum_cmp(u, v) >= 0) {
+            bignum_sub_borrow(u, u, v);
+            bignum_sub_borrow(A, A, C);
+            bignum_sub_borrow(B, B, D);
+        } else {
+            bignum_sub_borrow(v, v, u);
+            bignum_sub_borrow(C, C, A);
+            bignum_sub_borrow(D, D, B);
+        }
     }
     
-    bignum_copy(result, r);
+    // v contém o GCD, C contém o inverso de 'a'
+    if (bignum_cmp(v, ONE) == 0) {
+        // Normalizar resultado para ser positivo
+        while (bignum_cmp(C, P_CONST) >= 0) {
+            bignum_sub_borrow(C, C, P_CONST);
+        }
+        
+        // Se C é negativo (em complemento de 2), converter
+        if (C[7] & 0x80000000) {  // Bit de sinal
+            bignum_sub_borrow(result, P_CONST, C);
+        } else {
+            bignum_copy(result, C);
+        }
+    } else {
+        bignum_zero(result);  // Não existe inverso
+    }
+}
+
+// Fermat p: a^(-1) ≡ a^(p-2) (mod p)
+__device__ void mod_inverse_p_fermat(unsigned int *result, const unsigned int *a) {
+    // P - 2 para secp256k1
+    unsigned int p_minus_2[8] = {
+        0xFFFFFC2D, 0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF,
+        0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF
+    };
+    
+    // Calcular a^(p-2) mod p usando exponenciação rápida
+    unsigned int base[8], exp[8], temp_result[8];
+    bignum_copy(base, a);
+    bignum_copy(exp, p_minus_2);
+    bignum_set_ui(temp_result, 1);
+    
+    // Exponenciação binária: a^exp mod p
+    while (!bignum_is_zero(exp)) {
+        if (bignum_is_odd(exp)) {
+            // temp_result = (temp_result * base) mod p
+            mod_mul_mont_p(temp_result, temp_result, base);
+        }
+        
+        // base = (base * base) mod p
+        mod_mul_mont_p(base, base, base);
+        
+        // exp = exp / 2
+        bignum_shr1(exp, exp);
+    }
+    
+    bignum_copy(result, temp_result);
+}
+
+// Inversão Modular
+__device__ void mod_inverse_p(unsigned int *result, const unsigned int *a) {
+    // Verificar casos especiais
+    if (bignum_is_zero(a)) {
+        bignum_zero(result);
+        return;
+    }
+    
+    if (bignum_cmp(a, ONE) == 0) {
+        bignum_set_ui(result, 1);
+        return;
+    }
+    
+    // Verificação fermat:
+    mod_inverse_p_fermat(result, a);
+    
+    // Verificação: a * a^(-1) ≡ 1 (mod p)
+    unsigned int verification[8];
+    mod_mul_mont_p(verification, a, result);
+    
+    // Deve retornar 1
+    if (bignum_cmp(verification, ONE) != 0) {
+        // Fallback para algoritmo binário
+        mod_inverse_p_binary(result, a);
+    }
 }
 
 // ========== OPERAÇÕES EM COORDENADAS JACOBIANAS ==========
