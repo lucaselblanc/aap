@@ -336,9 +336,6 @@ __device__ void mod_mul_mont_n(unsigned int *result, const unsigned int *a, cons
     montgomery_reduce_n(result, high, low);
 }
 
-
-
-// CORREÇÃO 4: Fermat com conversão consistente para Montgomery
 __device__ void mod_inverse_p_fermat(unsigned int *result, const unsigned int *a) {
     // P - 2 para secp256k1
     unsigned int p_minus_2[8] = {
@@ -346,7 +343,6 @@ __device__ void mod_inverse_p_fermat(unsigned int *result, const unsigned int *a
         0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF
     };
     
-    // Converter entrada para Montgomery se necessário (assumindo já está)
     unsigned int base[8], exp[8], temp_result[8];
     bignum_copy(base, a);
     bignum_copy(exp, p_minus_2);
@@ -791,7 +787,6 @@ __device__ void scalar_mult(ECPoint *R, const unsigned int *k, const ECPoint *P)
     jacobian_to_affine(R, &R_jac);
 }
 
-// CORREÇÃO 2: Validação de ponto consistente com Montgomery
 __device__ int point_is_valid(const ECPoint *point) {
     if (point->infinity) return 1;
 
