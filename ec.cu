@@ -834,10 +834,10 @@ __device__ void point_from_montgomery(ECPoint *result, const ECPoint *point_mont
 }
 
 __device__ void get_compressed_public_key(unsigned char *out, const ECPoint *public_key_mont) {
-    // Converter de Montgomery para forma normal antes de serializar
     ECPoint public_key_normal;
     point_from_montgomery(&public_key_normal, public_key_mont);
     
+    // CORREÇÃO: Verificar o bit menos significativo de y (LSB)
     unsigned char prefix = (public_key_normal.y[0] & 1) ? 0x03 : 0x02;
     out[0] = prefix;
     
