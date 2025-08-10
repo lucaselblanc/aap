@@ -33,27 +33,29 @@ __constant__ unsigned int GY_CONST[8] = {
     0x0E1108A8, 0x5DA4FBFC, 0x26A3C465, 0x483ADA77
 };
 
-// R = 2^256 mod P para Montgomery form
+// R = 2^256 mod P
 __constant__ unsigned int R_MOD_P[8] = {
-    0x000003D1, 0x00000000, 0x00000000, 0x00000000,
+    0x000003D1, 0x00000001, 0x00000000, 0x00000000,
     0x00000000, 0x00000000, 0x00000000, 0x00000000
 };
 
-// R² mod P para conversão para Montgomery form
+// R^2 mod P
 __constant__ unsigned int R2_MOD_P[8] = {
-    0x000E90A1, 0x7A2DA637, 0x279B2847, 0xEB5233DD,
-    0xC71C71C7, 0x1C71C71C, 0x71C71C71, 0x0000000E
+    0x000E90A1, 0x000007A2, 0x00000001, 0x00000000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000
 };
 
-// R² mod N para operações modulares em N
+// R^2 mod N (little-endian words)
 __constant__ unsigned int R2_MOD_N[8] = {
-    0x9D671CD5, 0x81C69BC5, 0x19CE331D, 0x7CA23E7E,
-    0xA3D70A3D, 0x70A3D70A, 0x3D70A3D7, 0x00000000
+    0x67D7D140, 0x896CF214, 0x0E7CF878, 0x741496C2,
+    0x5BCD07C6, 0xE697F5E4, 0x81C69BC5, 0x9D671CD5
 };
 
-// μ = -P^(-1) mod 2^32 para Montgomery reduction
+// mu = -P^{-1} mod 2^32
 __constant__ unsigned int MU_P = 0xD2253531;
-__constant__ unsigned int MU_N = 0xEEDF9BFE;
+
+// mu para N
+__constant__ unsigned int MU_N = 0x5588B13F;
 
 // Constantes pré-computadas para secp256k1
 __constant__ unsigned int ZERO[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -63,13 +65,15 @@ __constant__ unsigned int THREE[8] = {3, 0, 0, 0, 0, 0, 0, 0};
 __constant__ unsigned int SEVEN[8] = {7, 0, 0, 0, 0, 0, 0, 0};
 
 // Constantes em Montgomery form
+// ONE_MONT = 1 * R mod P
 __constant__ unsigned int ONE_MONT[8] = {
-    0x000003D1, 0x00000000, 0x00000000, 0x00000000,
+    0x000003D1, 0x00000001, 0x00000000, 0x00000000,
     0x00000000, 0x00000000, 0x00000000, 0x00000000
 };
 
+// 7 * R mod P
 __constant__ unsigned int SEVEN_MONT[8] = {
-    0x00001A97, 0x00000000, 0x00000000, 0x00000000,
+    0x00001AB7, 0x00000007, 0x00000000, 0x00000000,
     0x00000000, 0x00000000, 0x00000000, 0x00000000
 };
 
