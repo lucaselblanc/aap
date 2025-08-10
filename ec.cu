@@ -1,6 +1,6 @@
 /*
-CUDA Elliptic Curve secp256k1
-Compilação: nvcc -o ec_cuda_full ec_cuda_full.cu -arch=sm_50 -O3 -lineinfo
+SECP256K1
+Compilação: nvcc -o ec_cuda_fixed ec_cuda_fixed.cu -arch=sm_50 -O3 -lineinfo
 Requisitos: CUDA 10.0+, GPU Compute Capability 5.0+
 */
 
@@ -22,7 +22,7 @@ __constant__ unsigned int N_CONST[8] = {
     0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF
 };
 
-// Ponto gerador G
+// Ponto gerador G (valores originais - serão convertidos para Montgomery quando necessário)
 __constant__ unsigned int GX_CONST[8] = {
     0x16F81798, 0x59F2815B, 0x2DCE28D9, 0x029BFCDB,
     0xCE870B07, 0x55A06295, 0xF9DCBBAC, 0x79BE667E
@@ -62,6 +62,17 @@ __constant__ unsigned int TWO[8] = {2, 0, 0, 0, 0, 0, 0, 0};
 __constant__ unsigned int THREE[8] = {3, 0, 0, 0, 0, 0, 0, 0};
 __constant__ unsigned int SEVEN[8] = {7, 0, 0, 0, 0, 0, 0, 0};
 
+// Constantes em Montgomery form
+__constant__ unsigned int ONE_MONT[8] = {
+    0x000003D1, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000
+};
+
+__constant__ unsigned int SEVEN_MONT[8] = {
+    0x00001A97, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000
+};
+
 // Ponto em coordenadas afins (x, y)
 typedef struct {
     unsigned int x[8];
@@ -69,7 +80,7 @@ typedef struct {
     int infinity;
 } ECPoint;
 
-// Ponto em coordenadas Jacobianas (X, Y, Z) onde x = X/Z², y = Y/Z³
+// Ponto em coordenadas Jacobianas (X, Y, Z)
 typedef struct {
     unsigned int X[8];
     unsigned int Y[8];
@@ -124,20 +135,19 @@ __device__ unsigned int bignum_add_carry(unsigned int *result, const unsigned in
     return (unsigned int)carry;
 }
 
-// Subtração com borrow
 __device__ unsigned int bignum_sub_borrow(unsigned int *result, const unsigned int *a, const unsigned int *b) {
-    unsigned long long borrow = 0;
+    long long carry = 0; // signed para detectar negative
     for (int i = 0; i < 8; i++) {
-        borrow = (unsigned long long)a[i] - b[i] - borrow;
-        if (borrow < 0) {
-            result[i] = (unsigned int)(borrow + (1ULL << 32));
-            borrow = 1;
+        long long tmp = (long long)a[i] - (long long)b[i] - carry;
+        if (tmp < 0) {
+            result[i] = (unsigned int)(tmp + (1ULL << 32));
+            carry = 1;
         } else {
-            result[i] = (unsigned int)borrow;
-            borrow = 0;
+            result[i] = (unsigned int)tmp;
+            carry = 0;
         }
     }
-    return (unsigned int)borrow;
+    return (unsigned int)carry;
 }
 
 // Shift right por 1 bit
@@ -271,6 +281,20 @@ __device__ void from_montgomery_p(unsigned int *result, const unsigned int *a) {
     montgomery_reduce_p(result, zero, a);
 }
 
+// Conversão para Montgomery form mod N: a * R mod N
+__device__ void to_montgomery_n(unsigned int *result, const unsigned int *a) {
+    unsigned int high[8], low[8];
+    bignum_mul_full(high, low, a, R2_MOD_N);
+    montgomery_reduce_n(result, high, low);
+}
+
+// Conversão de Montgomery form mod N: a / R mod N
+__device__ void from_montgomery_n(unsigned int *result, const unsigned int *a) {
+    unsigned int zero[8];
+    bignum_zero(zero);
+    montgomery_reduce_n(result, zero, a);
+}
+
 __device__ void mod_add_p(unsigned int *result, const unsigned int *a, const unsigned int *b) {
     unsigned int temp[8];
     unsigned int carry = bignum_add_carry(temp, a, b);
@@ -305,6 +329,42 @@ __device__ void mod_sqr_mont_p(unsigned int *result, const unsigned int *a) {
     mod_mul_mont_p(result, a, a);
 }
 
+// Multiplicação modular Montgomery mod N
+__device__ void mod_mul_mont_n(unsigned int *result, const unsigned int *a, const unsigned int *b) {
+    unsigned int high[8], low[8];
+    bignum_mul_full(high, low, a, b);
+    montgomery_reduce_n(result, high, low);
+}
+
+
+
+// CORREÇÃO 4: Fermat com conversão consistente para Montgomery
+__device__ void mod_inverse_p_fermat(unsigned int *result, const unsigned int *a) {
+    // P - 2 para secp256k1
+    unsigned int p_minus_2[8] = {
+        0xFFFFFC2D, 0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF,
+        0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF
+    };
+    
+    // Converter entrada para Montgomery se necessário (assumindo já está)
+    unsigned int base[8], exp[8], temp_result[8];
+    bignum_copy(base, a);
+    bignum_copy(exp, p_minus_2);
+    bignum_copy(temp_result, ONE_MONT); // 1 em forma Montgomery
+    
+    // Exponenciação binária: a^exp mod p em Montgomery
+    while (!bignum_is_zero(exp)) {
+        if (bignum_is_odd(exp)) {
+            mod_mul_mont_p(temp_result, temp_result, base);
+        }
+        
+        mod_mul_mont_p(base, base, base);
+        bignum_shr1(exp, exp);
+    }
+    
+    bignum_copy(result, temp_result);
+}
+
 // Binary Extended GCD
 __device__ void mod_inverse_p_binary(unsigned int *result, const unsigned int *a) {
     unsigned int u[8], v[8], A[8], B[8], C[8], D[8];
@@ -323,8 +383,15 @@ __device__ void mod_inverse_p_binary(unsigned int *result, const unsigned int *a
             bignum_shr1(u, u);
             
             if (bignum_is_odd(A) || bignum_is_odd(B)) {
+                // Normalização: se A ou B for ímpar, adicionar P_CONST para manter paridade
                 bignum_add_carry(A, A, P_CONST);
-                bignum_sub_borrow(B, B, a);
+                if (bignum_cmp(B, a) >= 0) {
+                    bignum_sub_borrow(B, B, a);
+                } else {
+                    // B - a seria negativo, então fazer P_CONST + B - a
+                    bignum_add_carry(temp, B, P_CONST);
+                    bignum_sub_borrow(B, temp, a);
+                }
             }
             
             bignum_shr1(A, A);
@@ -336,8 +403,15 @@ __device__ void mod_inverse_p_binary(unsigned int *result, const unsigned int *a
             bignum_shr1(v, v);
             
             if (bignum_is_odd(C) || bignum_is_odd(D)) {
+                // Normalização: se C ou D for ímpar, adicionar P_CONST para manter paridade
                 bignum_add_carry(C, C, P_CONST);
-                bignum_sub_borrow(D, D, a);
+                if (bignum_cmp(D, a) >= 0) {
+                    bignum_sub_borrow(D, D, a);
+                } else {
+                    // D - a seria negativo, então fazer P_CONST + D - a
+                    bignum_add_carry(temp, D, P_CONST);
+                    bignum_sub_borrow(D, temp, a);
+                }
             }
             
             bignum_shr1(C, C);
@@ -347,62 +421,55 @@ __device__ void mod_inverse_p_binary(unsigned int *result, const unsigned int *a
         // Subtrair o menor do maior
         if (bignum_cmp(u, v) >= 0) {
             bignum_sub_borrow(u, u, v);
-            bignum_sub_borrow(A, A, C);
-            bignum_sub_borrow(B, B, D);
+            
+            // Atualizar A e B com normalização modular
+            if (bignum_cmp(A, C) >= 0) {
+                bignum_sub_borrow(A, A, C);
+            } else {
+                // A - C seria negativo, então fazer P_CONST + A - C
+                bignum_add_carry(temp, A, P_CONST);
+                bignum_sub_borrow(A, temp, C);
+            }
+            
+            if (bignum_cmp(B, D) >= 0) {
+                bignum_sub_borrow(B, B, D);
+            } else {
+                // B - D seria negativo, então fazer P_CONST + B - D
+                bignum_add_carry(temp, B, P_CONST);
+                bignum_sub_borrow(B, temp, D);
+            }
         } else {
             bignum_sub_borrow(v, v, u);
-            bignum_sub_borrow(C, C, A);
-            bignum_sub_borrow(D, D, B);
+            
+            // Atualizar C e D com normalização modular
+            if (bignum_cmp(C, A) >= 0) {
+                bignum_sub_borrow(C, C, A);
+            } else {
+                // C - A seria negativo, então fazer P_CONST + C - A
+                bignum_add_carry(temp, C, P_CONST);
+                bignum_sub_borrow(C, temp, A);
+            }
+            
+            if (bignum_cmp(D, B) >= 0) {
+                bignum_sub_borrow(D, D, B);
+            } else {
+                // D - B seria negativo, então fazer P_CONST + D - B
+                bignum_add_carry(temp, D, P_CONST);
+                bignum_sub_borrow(D, temp, B);
+            }
         }
     }
     
     // v contém o GCD, C contém o inverso de 'a'
     if (bignum_cmp(v, ONE) == 0) {
-        // Normalizar resultado para ser positivo
-        while (bignum_cmp(C, P_CONST) >= 0) {
-            bignum_sub_borrow(C, C, P_CONST);
-        }
-        
-        // Se C é negativo (em complemento de 2), converter
-        if (C[7] & 0x80000000) {  // Bit de sinal
-            bignum_sub_borrow(result, P_CONST, C);
-        } else {
-            bignum_copy(result, C);
+        // Normalizar C para estar no intervalo [0, P_CONST)
+        bignum_copy(result, C);
+        while (bignum_cmp(result, P_CONST) >= 0) {
+            bignum_sub_borrow(result, result, P_CONST);
         }
     } else {
         bignum_zero(result);  // Não existe inverso
     }
-}
-
-// Fermat p: a^(-1) ≡ a^(p-2) (mod p)
-__device__ void mod_inverse_p_fermat(unsigned int *result, const unsigned int *a) {
-    // P - 2 para secp256k1
-    unsigned int p_minus_2[8] = {
-        0xFFFFFC2D, 0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF,
-        0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF
-    };
-    
-    // Calcular a^(p-2) mod p usando exponenciação rápida
-    unsigned int base[8], exp[8], temp_result[8];
-    bignum_copy(base, a);
-    bignum_copy(exp, p_minus_2);
-    bignum_set_ui(temp_result, 1);
-    
-    // Exponenciação binária: a^exp mod p
-    while (!bignum_is_zero(exp)) {
-        if (bignum_is_odd(exp)) {
-            // temp_result = (temp_result * base) mod p
-            mod_mul_mont_p(temp_result, temp_result, base);
-        }
-        
-        // base = (base * base) mod p
-        mod_mul_mont_p(base, base, base);
-        
-        // exp = exp / 2
-        bignum_shr1(exp, exp);
-    }
-    
-    bignum_copy(result, temp_result);
 }
 
 // Inversão Modular
@@ -413,35 +480,39 @@ __device__ void mod_inverse_p(unsigned int *result, const unsigned int *a) {
         return;
     }
     
-    if (bignum_cmp(a, ONE) == 0) {
-        bignum_set_ui(result, 1);
+    if (bignum_cmp(a, ONE_MONT) == 0) {
+        bignum_copy(result, ONE_MONT);
         return;
     }
     
-    // Verificação fermat:
+    // Usar Fermat (mais rápido para primos)
     mod_inverse_p_fermat(result, a);
     
-    // Verificação: a * a^(-1) ≡ 1 (mod p)
+    // Verificação: a * a^(-1) ≡ 1 (mod p) em Montgomery
     unsigned int verification[8];
     mod_mul_mont_p(verification, a, result);
     
-    // Deve retornar 1
-    if (bignum_cmp(verification, ONE) != 0) {
-        // Fallback para algoritmo binário
-        mod_inverse_p_binary(result, a);
+    // Deve retornar 1 em Montgomery form
+    if (bignum_cmp(verification, ONE_MONT) != 0) {
+        // Fallback para algoritmo binário se Fermat falhar
+        // Converter para forma normal, fazer inversão, converter de volta
+        unsigned int a_normal[8], result_normal[8];
+        from_montgomery_p(a_normal, a);
+        mod_inverse_p_binary(result_normal, a_normal);
+        to_montgomery_p(result, result_normal);
     }
 }
 
 __device__ void jacobian_init(ECPointJacobian *point) {
     bignum_zero(point->X);
     bignum_zero(point->Y);
-    bignum_set_ui(point->Z, 1);
+    bignum_copy(point->Z, ONE_MONT); // Z = 1 em Montgomery
     point->infinity = 0;
 }
 
 __device__ void jacobian_set_infinity(ECPointJacobian *point) {
-    bignum_set_ui(point->X, 1);
-    bignum_set_ui(point->Y, 1);
+    bignum_copy(point->X, ONE_MONT);
+    bignum_copy(point->Y, ONE_MONT);
     bignum_zero(point->Z);
     point->infinity = 1;
 }
@@ -459,11 +530,10 @@ __device__ void affine_to_jacobian(ECPointJacobian *jac, const ECPoint *aff) {
     
     bignum_copy(jac->X, aff->x);
     bignum_copy(jac->Y, aff->y);
-    bignum_set_ui(jac->Z, 1);
+    bignum_copy(jac->Z, ONE_MONT); // Z = 1 em Montgomery
     jac->infinity = 0;
 }
 
-// Conversão de Jacobiano para afim
 __device__ void jacobian_to_affine(ECPoint *aff, const ECPointJacobian *jac) {
     if (jacobian_is_infinity(jac)) {
         bignum_zero(aff->x);
@@ -474,26 +544,24 @@ __device__ void jacobian_to_affine(ECPoint *aff, const ECPointJacobian *jac) {
     
     unsigned int z_inv[8], z_inv_sqr[8], z_inv_cube[8];
     
-    // z_inv = Z^(-1)
+    // z_inv = Z^(-1) em Montgomery
     mod_inverse_p(z_inv, jac->Z);
     
-    // z_inv_sqr = Z^(-2)
+    // z_inv_sqr = Z^(-2) em Montgomery
     mod_mul_mont_p(z_inv_sqr, z_inv, z_inv);
     
-    // z_inv_cube = Z^(-3)
+    // z_inv_cube = Z^(-3) em Montgomery
     mod_mul_mont_p(z_inv_cube, z_inv_sqr, z_inv);
     
-    // x = X * Z^(-2)
+    // x = X * Z^(-2) em Montgomery
     mod_mul_mont_p(aff->x, jac->X, z_inv_sqr);
     
-    // y = Y * Z^(-3)
+    // y = Y * Z^(-3) em Montgomery
     mod_mul_mont_p(aff->y, jac->Y, z_inv_cube);
     
     aff->infinity = 0;
 }
 
-// Duplicação de ponto em coordenadas Jacobianas
-// Algoritmo: 2P = (X₃, Y₃, Z₃) onde P = (X₁, Y₁, Z₁)
 __device__ void jacobian_double(ECPointJacobian *result, const ECPointJacobian *point) {
     if (jacobian_is_infinity(point) || bignum_is_zero(point->Y)) {
         jacobian_set_infinity(result);
@@ -501,6 +569,7 @@ __device__ void jacobian_double(ECPointJacobian *result, const ECPointJacobian *
     }
     
     unsigned int A[8], B[8], C[8], D[8], E[8], F[8];
+    unsigned int X2[8]; // Temporary para X^2
     
     // A = Y₁²
     mod_sqr_mont_p(A, point->Y);
@@ -516,11 +585,9 @@ __device__ void jacobian_double(ECPointJacobian *result, const ECPointJacobian *
     mod_add_p(C, C, C);  // 4 * Y₁⁴
     mod_add_p(C, C, C);  // 8 * Y₁⁴
     
-    // D = 3 * X₁²
-    mod_sqr_mont_p(D, point->X);
-    mod_add_p(D, D, D);  // 2 * X₁²
-    mod_add_p(D, D, D);  // 3 * X₁² (D + 2*D)
-    // Para secp256k1: a = 0, então não precisa adicionar a*Z₁⁴
+    mod_sqr_mont_p(X2, point->X);    // X2 = X₁²
+    mod_add_p(D, X2, X2);            // D = 2 * X₁²
+    mod_add_p(D, D, X2);             // D = 3 * X₁²
     
     // E = D²
     mod_sqr_mont_p(E, D);
@@ -545,7 +612,6 @@ __device__ void jacobian_double(ECPointJacobian *result, const ECPointJacobian *
 }
 
 // Adição de pontos em coordenadas Jacobianas
-// Algoritmo para P + Q onde P = (X₁, Y₁, Z₁), Q = (X₂, Y₂, Z₂)
 __device__ void jacobian_add(ECPointJacobian *result, const ECPointJacobian *P, const ECPointJacobian *Q) {
     if (jacobian_is_infinity(P)) {
         bignum_copy(result->X, Q->X);
@@ -638,7 +704,17 @@ __device__ void jacobian_add(ECPointJacobian *result, const ECPointJacobian *P, 
     result->infinity = 0;
 }
 
-// Multiplicação escalar em coordenadas Jacobianas (muito mais rápida)
+// Função para reduzir scalar módulo N de forma eficiente
+__device__ void scalar_reduce_n(unsigned int *result, const unsigned int *scalar) {
+    bignum_copy(result, scalar);
+    
+    // Reduzir k módulo N usando subtração repetida otimizada
+    while (bignum_cmp(result, N_CONST) >= 0) {
+        bignum_sub_borrow(result, result, N_CONST);
+    }
+}
+
+// Multiplicação escalar em coordenadas Jacobianas otimizada
 __device__ void jacobian_scalar_mult(ECPointJacobian *result, const unsigned int *scalar, const ECPointJacobian *point) {
     ECPointJacobian Q, temp;
     jacobian_init(&Q);
@@ -651,12 +727,7 @@ __device__ void jacobian_scalar_mult(ECPointJacobian *result, const unsigned int
     Q.infinity = point->infinity;
     
     unsigned int k[8];
-    bignum_copy(k, scalar);
-    
-    // Reduzir k módulo N
-    while (bignum_cmp(k, N_CONST) >= 0) {
-        bignum_sub_borrow(k, k, N_CONST);
-    }
+    scalar_reduce_n(k, scalar);
     
     // Algoritmo binary (double-and-add)
     while (!bignum_is_zero(k)) {
@@ -720,27 +791,60 @@ __device__ void scalar_mult(ECPoint *R, const unsigned int *k, const ECPoint *P)
     jacobian_to_affine(R, &R_jac);
 }
 
+// CORREÇÃO 2: Validação de ponto consistente com Montgomery
 __device__ int point_is_valid(const ECPoint *point) {
     if (point->infinity) return 1;
 
     unsigned int lhs[8], rhs[8], temp[8];
     
-    // y² = x³ + 7 (secp256k1)
-    mod_mul_mont_p(lhs, point->y, point->y);      // y²
-    mod_mul_mont_p(rhs, point->x, point->x);      // x²
-    mod_mul_mont_p(rhs, rhs, point->x);           // x³
-    mod_add_p(rhs, rhs, SEVEN);                   // x³ + 7
+    // y² = x³ + 7 (secp256k1) - ambos em Montgomery
+    mod_sqr_mont_p(lhs, point->y);           // y² em Montgomery
+    mod_sqr_mont_p(rhs, point->x);           // x² em Montgomery
+    mod_mul_mont_p(rhs, rhs, point->x);      // x³ em Montgomery
+    mod_add_p(rhs, rhs, SEVEN_MONT);         // x³ + 7 em Montgomery
 
     return (bignum_cmp(lhs, rhs) == 0);
 }
 
-__device__ void get_compressed_public_key(unsigned char *out, const ECPoint *public_key) {
-    unsigned char prefix = (public_key->y[0] & 1) ? 0x03 : 0x02;
+// Função para converter constantes do gerador para Montgomery
+__device__ void get_generator_montgomery(ECPoint *G) {
+    to_montgomery_p(G->x, GX_CONST);
+    to_montgomery_p(G->y, GY_CONST);
+    G->infinity = 0;
+}
+
+// Função para gerar chave pública (k * G) onde k é chave privada
+__device__ void generate_public_key(ECPoint *public_key, const unsigned int *private_key) {
+    ECPoint G;
+    get_generator_montgomery(&G);
+    scalar_mult(public_key, private_key, &G);
+}
+
+// Função para converter resultado final de Montgomery para forma normal
+__device__ void point_from_montgomery(ECPoint *result, const ECPoint *point_mont) {
+    if (point_mont->infinity) {
+        result->infinity = 1;
+        bignum_zero(result->x);
+        bignum_zero(result->y);
+        return;
+    }
+    
+    from_montgomery_p(result->x, point_mont->x);
+    from_montgomery_p(result->y, point_mont->y);
+    result->infinity = 0;
+}
+
+__device__ void get_compressed_public_key(unsigned char *out, const ECPoint *public_key_mont) {
+    // Converter de Montgomery para forma normal antes de serializar
+    ECPoint public_key_normal;
+    point_from_montgomery(&public_key_normal, public_key_mont);
+    
+    unsigned char prefix = (public_key_normal.y[0] & 1) ? 0x03 : 0x02;
     out[0] = prefix;
     
     // Converter x para big-endian
     for (int i = 0; i < 8; i++) {
-        unsigned int word = public_key->x[7-i];
+        unsigned int word = public_key_normal.x[7-i];
         out[1 + i*4] = (word >> 24) & 0xFF;
         out[1 + i*4 + 1] = (word >> 16) & 0xFF;
         out[1 + i*4 + 2] = (word >> 8) & 0xFF;
