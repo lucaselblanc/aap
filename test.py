@@ -1,5 +1,8 @@
 # --- ! --- #
 
+# N almost inverse
+N = 17
+
 def div2(p, a):
     """Helper routine to compute a/2 mod p (where p is odd)."""
     assert p & 1
@@ -141,3 +144,32 @@ def modinv(p, p_inv, x):
         x1, x2 = update_x1x2_optimized_ver2(x1, x2, t, p, p_inv)
     assert u == 1 or u == -1  
     return normalize(u, x1, p)
+
+def main():
+    # --- Priv Key LSB-first (Entropy 130/256 bits) ---
+    h_priv = [
+        0x28b88cf897c603c9,
+        0x3e7665705359f04f,
+        0x0000000000000003,
+        0x0000000000000000
+    ]
+
+    # LSB-first
+    a = h_priv[0] + (h_priv[1] << 64) + (h_priv[2] << 128) + (h_priv[3] << 192)
+
+    # --- prime p secp256k1 ---
+    p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+
+    # p_inv = 1/p mod 2^N
+    p_inv = pow(p, -1, 2**N)
+
+    # Call modular inverse
+    inv_a = modinv(p, p_inv, a)
+
+    print("Chave privada (decimal):", a)
+    print("Módulo p (decimal):", p)
+    print("Inverso modular (decimal):", inv_a)
+    print("Inverso modular (hex) :", hex(inv_a))
+
+if __name__ == "__main__":
+    main()
