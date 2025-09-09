@@ -1,5 +1,7 @@
 From Paper: https://eprint.iacr.org/2019/266.pdf
 
+# PAPER START
+
 def shortgcd2(f,g):
   delta,f,g = 1,ZZ(f),ZZ(g)
   assert f&1
@@ -161,3 +163,106 @@ def verify(w,P):
       nodes += verify(e+w,scaledM(e,q)*P)
 
 print verify(0,R(1))
+
+# PAPER END
+
+# --- PYTHON EXAMPLE --- #
+
+N = 17  # controle de divisão por 2^N
+
+def truncate(f, t):
+    """Truncate integer f to t bits with proper signed behavior."""
+    if t == 0:
+        return 0
+    mask = (1 << t) - 1
+    f = f & mask
+    if f >= (1 << (t-1)):
+        f -= (1 << t)
+    return f
+
+def sign(x):
+    return 1 if x >= 0 else -1
+
+def div2n(x, p, p_inv, N):
+    """Reduce x modulo p with division by 2^N."""
+    m = (x * p_inv) % (1 << N)
+    x -= m * p
+    return x >> N
+
+def matvec_mult(P, x, y, t):
+    """Matrix-vector multiplication with truncation."""
+    (u, v), (q, r) = P
+    fx = truncate(u*x + v*y, t)
+    gx = truncate(q*x + r*y, t)
+    return fx, gx
+
+def mat_mult(P2, P1):
+    (a1, b1), (c1, d1) = P1
+    (a2, b2), (c2, d2) = P2
+    return ((a2*a1 + b2*c1, a2*b1 + b2*d1),
+            (c2*a1 + d2*c1, c2*b1 + d2*d1))
+
+def divsteps2(n, t, delta, f, g):
+    """Perform divsteps as in Bernstein-Yang."""
+    f, g = truncate(f, t), truncate(g, t)
+    u, v, q, r = 1, 0, 0, 1
+    while n > 0:
+        f = truncate(f, t)
+        if delta > 0 and g & 1:
+            delta, f, g, u, v, q, r = -delta, g, -f, q, r, -u, -v
+        g0 = g & 1
+        delta, g, q, r = 1 + delta, (g + g0*f)//2, (q + g0*u)//2, (r + g0*v)//2
+        n, t = n - 1, t - 1
+        g = truncate(g, t)
+    return delta, f, g, ((u, v), (q, r))
+
+def jumpdivsteps2(n, t, delta, f, g):
+    """Recursive jump divsteps (paper-accurate, sem truncamento prematuro)."""
+    if n <= 1:
+        return divsteps2(n, t, delta, f, g)
+    j = n // 2
+    delta, f1, g1, P1 = jumpdivsteps2(j, t, delta, f, g)
+    f, g = matvec_mult(P1, f1, g1, t)  # t constante, sem subtração
+    delta, f2, g2, P2 = jumpdivsteps2(n-j, t, delta, f, g)
+    f, g = matvec_mult(P2, f2, g2, t)
+    P = mat_mult(P2, P1)
+    return delta, f, g, P
+
+def iterations(d):
+    return (49*d + 80)//17 if d < 46 else (49*d + 57)//17
+
+def recip2(f, g):
+    """Compute modular inverse using almost inverse algorithm (paper-accurate)."""
+    assert f & 1
+    d = max(f.bit_length(), g.bit_length())
+    m = iterations(d)
+
+    # Precomputation
+    precomp = pow((f+1)//2, m-1, f)
+    p_inv = pow(f, -1, 1 << N)  # inverse mod 2^N
+
+    # Jump divsteps
+    delta, fm, gm, P = jumpdivsteps2(m, m+1, 1, f, g)
+    u, v = P[0]
+
+    # Multiply by 2^(m-1), precomp e sinal de fm
+    Vpre = sign(fm) * v * (1 << (m-1))
+    inv = div2n(Vpre * precomp, f, p_inv, m)
+    inv = inv % f  # garante que esteja em [0, f)
+
+    return inv
+
+def main():
+    f = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+    g = 0x33e7665705359f04f28b88cf897c603c9
+
+    print("Calculando inverso de g modulo f...")
+    inv = recip2(f, g)
+    print("Inverso modular:", hex(inv))
+
+    check = (g * inv) % f
+    print("Verificação: g * inv % f =", hex(check))
+    assert check == 1, "Inverso modular incorreto!"
+
+if __name__ == "__main__":
+    main()
