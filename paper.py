@@ -230,21 +230,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# --- CUDA --- #
-
-#include <cuda_runtime.h>
-#include <stdio.h>
-
-// Função device: pode ser chamada dentro de kernels CUDA
-__device__ int truncate(int f, int t) {
-    if (t == 0) {
-        return 0;
-    }
-    int mask = (1 << t) - 1;
-    f = f & mask;
-    if (f >= (1 << (t - 1))) {
-        f -= (1 << t);
-    }
-    return f;
-}
