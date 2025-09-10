@@ -171,7 +171,6 @@ print verify(0,R(1))
 from fractions import Fraction
 
 def truncate(f, t):
-
     if t == 0:
         return 0
     mask = (1 << t) - 1
@@ -185,22 +184,24 @@ def sign(x):
 
 def div2n(x, p, p_inv, m):
     two_m = 1 << m
-    correction = (x * p_inv) & (two_m - 1)                                                                                                                    x = x - correction * p
-
+    correction = (x * p_inv) & (two_m - 1)
+    x = x - correction * p
     return x >> m
 
 def divsteps2(n, t, delta, f, g):
-                                                                                            f, g = truncate(f, t), truncate(g, t)                                                                                                                     u, v, q, r = Fraction(1), Fraction(0), Fraction(0), Fraction(1)
+    f, g = truncate(f, t), truncate(g, t)
+    u, v, q, r = Fraction(1), Fraction(0), Fraction(0), Fraction(1)
     while n > 0:
         f = truncate(f, t)
-        if delta > 0 and (g & 1):                                                                                                                      delta, f, g, u, v, q, r = -delta, g, -f, q, r, -u, -v                                                                                                 g0 = g & 1
+        if delta > 0 and (g & 1):
+            delta, f, g, u, v, q, r = -delta, g, -f, q, r, -u, -v
+        g0 = g & 1
         delta = 1 + delta
         g = (g + g0 * f) // 2
         q = (q + Fraction(g0) * u) / 2
         r = (r + Fraction(g0) * v) / 2
         n, t = n - 1, t - 1
         g = truncate(g, t)
-
     return delta, f, g, ((u, v), (q, r))
 
 def iterations(d):
@@ -210,25 +211,19 @@ def recip2(f, g):
     assert f & 1
     d = max(f.bit_length(), g.bit_length())
     m = iterations(d)
-
     precomp = pow((f + 1)//2, m - 1, f)
-
     delta, fm, gm, P = divsteps2(m, m + 1, 1, f, g)
     (u_frac, v_frac), (q_frac, r_frac) = P
-
     V_int = int(v_frac * (1 << (m - 1))) * sign(fm)
-
     inv = (V_int * precomp) % f
     return inv
 
 def main():
     f = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
     g = 0x33e7665705359f04f28b88cf897c603c9
-
     print("Calculando inverso de g modulo f...")
     inv = recip2(f, g)
     print("Inverso modular:", hex(inv))
-
     check = (g * inv) % f
     print("Verificação: g * inv % f =", hex(check))
     assert check == 1, "Inverso modular incorreto!"
