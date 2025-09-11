@@ -257,3 +257,14 @@ __device__ int truncate(uint256_t f, int t) {
 
     return static_cast<int>(f_trunc & 0xFFFFFFFF);
 }
+
+__device__ int sign(int x) {
+    return (x >= 0) ? 1 : -1;
+}
+
+__device__ int div2n(int x, int p, int p_inv, int m) {
+    int two_m = 1 << m;
+    int correction = (x * p_inv) & (two_m - 1);
+    x = x - correction * p;
+    return x >> m;
+}
