@@ -233,3 +233,27 @@ if __name__ == "__main__":
 
 # --- CUDA --- #
 
+struct uint256_t {
+    __uint128_t _[2];
+};
+
+__device__ int truncate(uint256_t f, int t) {
+    if (t == 0) return 0;
+
+    __uint128_t mask;
+    __uint128_t f_trunc;
+
+    if (t <= 128) {
+        mask = (__uint128_t(1) << t) - 1;
+        f_trunc = f.data[0] & mask;
+    } else {
+        mask = (__uint128_t(1) << (t - 128)) - 1;
+        f_trunc = ((f.data[1] & mask) << 128) | f.data[0];
+    }
+
+    if (f_trunc >= (__uint128_t(1) << (t - 1))) {
+        f_trunc -= (__uint128_t(1) << t);
+    }
+
+    return static_cast<int>(f_trunc & 0xFFFFFFFF);
+}
