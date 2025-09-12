@@ -166,6 +166,7 @@ print verify(0,R(1))
 
 # PAPER END
 
+
 # --- PYTHON EXAMPLE --- #
 
 from fractions import Fraction
@@ -181,12 +182,6 @@ def truncate(f, t):
 
 def sign(x):
     return 1 if x >= 0 else -1
-
-def div2n(x, p, p_inv, m):
-    two_m = 1 << m
-    correction = (x * p_inv) & (two_m - 1)
-    x = x - correction * p
-    return x >> m
 
 def divsteps2(n, t, delta, f, g):
     f, g = truncate(f, t), truncate(g, t)
@@ -212,8 +207,8 @@ def recip2(f, g):
     d = max(f.bit_length(), g.bit_length())
     m = iterations(d)
     precomp = pow((f + 1)//2, m - 1, f)
-    delta, fm, gm, P = divsteps2(m, m + 1, 1, f, g)
-    (u_frac, v_frac), (q_frac, r_frac) = P
+    _, fm, _, P = divsteps2(m, m + 1, 1, f, g)
+    (_, v_frac), _ = P
     V_int = int(v_frac * (1 << (m - 1))) * sign(fm)
     inv = (V_int * precomp) % f
     return inv
