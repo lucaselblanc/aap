@@ -166,7 +166,6 @@ print verify(0,R(1))
 
 # PAPER END
 
-
 # --- PYTHON EXAMPLE --- #
 
 from fractions import Fraction
@@ -225,3 +224,29 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+#Almost-Inverse Alocation Table:
+#--- VARS ---
+f = __uint256_t
+fm = __uint256_t
+g = __uint256_t
+g0 = __uint256_t
+d = __uint256_t
+m = __uint256_t
+n = __uint256_t
+t = __uint256_t
+delta = __uint256_t
+x = __uint256_t
+check = __uint256_t
+precomp = __uint256_t
+inv = __uint256_t
+
+#--- FRACTIONS ---
+P = __uint1024_t
+mask = __uint1024_t
+v_frac = __uint1024_t
+V_int = __uint1024_t
+u = __uint1024_t
+v = __uint1024_t
+q = __uint1024_t
+r = __uint1024_t
