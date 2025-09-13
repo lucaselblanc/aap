@@ -227,7 +227,7 @@ if __name__ == "__main__":
 
 #Almost-Inverse Alocation Table:
 #--- VARS ---
-int f = __uint256_t
+int() f = __uint256_t
 int fm = __uint256_t
 int g = __uint256_t
 int g0 = __uint256_t
