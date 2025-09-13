@@ -227,19 +227,19 @@ if __name__ == "__main__":
 
 #Almost-Inverse Alocation Table:
 #--- VARS ---
-int() f = __uint256_t
-int fm = __uint256_t
-int g = __uint256_t
-int g0 = __uint256_t
-int d = __uint256_t
-int m = __uint256_t
-int n = __uint256_t
-int t = __uint256_t
-int delta = __uint256_t
-int x = __uint256_t
-int check = __uint256_t
-int precomp = __uint256_t
-int inv = __uint256_t
+f = __uint256_t
+fm = __uint256_t
+g = __uint256_t
+g0 = __uint256_t
+d = __uint256_t
+m = __uint256_t
+n = __uint256_t
+t = __uint256_t
+delta = __uint256_t
+x = __uint256_t
+check = __uint256_t
+precomp = __uint256_t
+inv = __uint256_t
 
 #--- FRACTIONS ---
 P = __uint1024_t
