@@ -1,6 +1,3 @@
-﻿use std::fs;
-use std::io::{self, Write};
-
 /******************************************************************************************************
  * This file is part of the AAP distribution: (https://github.com/lucaselblanc/aap) *
  * Copyright (c) 2024, 2025 Lucas Leblanc.                                                            *
@@ -13,38 +10,63 @@ use std::io::{self, Write};
  * Written by Lucas Leblanc              *
 ******************************************/
 
+use std::collections::HashMap;
+use std::fs;
+use std::io::{self, Write};
+
 fn main() {
-    let dictionary = load_dictionary("dictionary[PT-BR].txt");
+    let dictionary = match fs::read_to_string("dictionary[PT-BR].txt") {
+        Ok(content) => content.lines().map(|line| line.trim().to_uppercase()).collect::<Vec<String>>(),
+        Err(_) => {
+            println!("Erro: Arquivo 'dictionary[PT-BR].txt' não encontrado no diretório atual.");
+            return;
+        }
+    };
+    
+    let entropy_table = build_entropy_table(&dictionary);
 
-    loop {       
+    loop {
+        let abbreviation = get_user_input("[exit to close], Enter abbreviation: ");
+        
+        if abbreviation.to_lowercase() == "exit" {
+            println!("Program stopped!");
+            break;
+        }
 
-          let abbreviation = get_user_input("[exit to close], Enter abbreviation: ");
-          let candidates = get_candidates(&dictionary, &abbreviation);
+        let candidates = get_candidates(&dictionary, &abbreviation);
 
-          if abbreviation.to_lowercase() == "exit" {
-              println!("Program stopped!");
-              break;
-          }
+        if candidates.is_empty() {
+            println!("No words found for the abbreviation '{}'.", abbreviation);
+            continue;
+        }
 
-          if candidates.is_empty() {
-              println!("No words found for the abbreviation '{}'.", abbreviation);
-          }
+        let best_match = apply_second_test(&candidates, &abbreviation, &entropy_table);
 
-          let best_match = apply_second_test(&candidates, &abbreviation);
-
-          if let Some(word) = best_match {
-              println!("Most likely word for the abbreviation '{}': {}", abbreviation, word);
-          } else {
-              println!("No words could be identified with high accuracy!");
-          }
+        if let Some(word) = best_match {
+            println!("Most likely word for '{}': {}", abbreviation, word);
+        }
     }
 }
 
-fn load_dictionary(file_path: &str) -> Vec<String> {
-    let content = fs::read_to_string(file_path)
-        .expect("Error reading dictionary file!");
-    let words: Vec<String> = content.lines().map(|line| line.to_string()).collect();
-    words
+/// Entropy Table: H(c) = -log2(P(c))
+fn build_entropy_table(dictionary: &[String]) -> HashMap<char, f64> {
+    let mut counts = HashMap::new();
+    let mut total_chars = 0.0f64;
+
+    for word in dictionary {
+        for c in word.chars().filter(|c| c.is_alphabetic()) {
+            *counts.entry(c).or_insert(0.0f64) += 1.0;
+            total_chars += 1.0;
+        }
+    }
+
+    counts.into_iter()
+        .map(|(c, count)| {
+            let probability: f64 = count / total_chars;
+            let entropy = -probability.log2(); 
+            (c, entropy)
+        })
+        .collect()
 }
 
 fn get_user_input(prompt: &str) -> String {
@@ -55,41 +77,6 @@ fn get_user_input(prompt: &str) -> String {
     input.trim().to_uppercase()
 }
 
-//Convert letters -> numbers 
-fn letter_to_number(c: char) -> i32 {
-    //Primes: C, D, F, H, L, N, R, T, X.
-    match c.to_ascii_uppercase() {
-        'A' => 0,
-        'B' => 1,
-        'C' => 2, //prime
-        'D' => 3, //prime
-        'E' => 4,
-        'F' => 5, //prime
-        'G' => 6,
-        'H' => 7, //prime
-        'I' => 8,
-        'J' => 9,
-        'K' => 10,
-        'L' => 11, //prime
-        'M' => 12,
-        'N' => 13, //prime
-        'O' => 14,
-        'P' => 15,
-        'Q' => 16,
-        'R' => 17, //prime
-        'S' => 18,
-        'T' => 19, //prime
-        'U' => 20,
-        'V' => 21,
-        'W' => 22,
-        'X' => 23, //prime
-        'Y' => 24,
-        'Z' => 25,
-        _ => -1,
-    }
-}
-
-//Filter
 fn get_candidates(dictionary: &[String], abbreviation: &str) -> Vec<String> {
     dictionary
         .iter()
@@ -98,82 +85,52 @@ fn get_candidates(dictionary: &[String], abbreviation: &str) -> Vec<String> {
         .collect()
 }
 
-//First proof:
+/// First Proof
 fn is_sequence_natural(word: &str, abbreviation: &str) -> bool {
-    let abbrev_numbers: Vec<i32> = abbreviation
-        .chars()
-        .map(letter_to_number)
-        .filter(|&num| num >= 0)
-        .collect();
+    let abbrev_chars: Vec<char> = abbreviation.chars().collect();
+    let word_chars: Vec<char> = word.chars().collect();
 
-    let word_numbers: Vec<i32> = word
-        .chars()
-        .map(letter_to_number)
-        .filter(|&num| num >= 0)
-        .collect();
-
-    if abbrev_numbers.is_empty() 
-        || word_numbers.is_empty() 
-        || abbrev_numbers[0] != word_numbers[0] 
-        || abbrev_numbers.last() != word_numbers.last()
-    {
+    if abbrev_chars.is_empty() || word_chars.is_empty() 
+        || abbrev_chars[0] != word_chars[0] 
+        || abbrev_chars.last() != word_chars.last() {
         return false;
     }
 
-    let mut abbrev_iter = abbrev_numbers.iter();
-    let mut current_abbrev = abbrev_iter.next();
-
-    for num in word_numbers {
-        if Some(&num) == current_abbrev {
-            current_abbrev = abbrev_iter.next();
-        }
-        if current_abbrev.is_none() {
-            return true;
+    let mut word_iter = word_chars.iter();
+    for &target in &abbrev_chars {
+        if !word_iter.any(|&c| c == target) {
+            return false;
         }
     }
-
-    false
+    true
 }
 
-//Second proof:
-fn apply_second_test(candidates: &[String], abbreviation: &str) -> Option<String> {
-    let prime_sum: i32 = abbreviation.chars()
-        .filter(|&c| is_prime(letter_to_number(c)))
-        .map(letter_to_number)
+/// Second Proof -> Shannon Entropy
+fn apply_second_test(candidates: &[String], abbreviation: &str, entropy_table: &HashMap<char, f64>) -> Option<String> {
+    let default_entropy = 10.0f64;
+
+    let abbrev_info: f64 = abbreviation.chars()
+        .map(|c| *entropy_table.get(&c).unwrap_or(&default_entropy))
         .sum();
 
-    let scored_candidates: Vec<(String, f64)> = candidates
+    let mut scored_candidates: Vec<(String, f64)> = candidates
         .iter()
         .map(|word| {
-            let composite_total: i32 = word.chars()
-                .filter(|&c| !is_prime(letter_to_number(c)))
-                .map(letter_to_number)
+            let word_info: f64 = word.chars()
+                .map(|c| *entropy_table.get(&c).unwrap_or(&default_entropy))
                 .sum();
 
-            let prime_count = word.chars()
-                .filter(|&c| is_prime(letter_to_number(c)))
-                .count();
-
-            //Adjustment to abbreviation to keep or discard prime numbers:
-            /*let score = composite_total as f64 / prime_sum as f64;*/
-            let score = (composite_total as f64 + prime_count as f64) / prime_sum as f64;
-            println!("Word: '{}', composite_total: {}, prime_sum: {}, score: {}", word, composite_total, prime_sum, score);
-
-            (format!("{} {:.7}%", word, score), score)
+            let score = abbrev_info / word_info;
+            (word.clone(), score)
         })
         .collect();
 
-    println!(
-        "Candidates after the first proof: {:?}",
-        scored_candidates.iter().map(|(desc, _)| desc.clone()).collect::<Vec<_>>()
-    );
+    scored_candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-    scored_candidates
-        .into_iter()
-        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-        .map(|(desc, _)| desc)
-}
+    println!("\nTop candidates (Information Density):");
+    for (word, score) in scored_candidates.iter().take(3) {
+        println!(" - {} ({:.2}%)", word, score * 100.0);
+    }
 
-fn is_prime(num: i32) -> bool {
-    matches!(num, 2 | 3 | 5 | 7 | 11 | 13 | 17 | 19 | 23)
+    scored_candidates.first().map(|(word, score)| format!("{} ({:.2}%)", word, score * 100.0))
 }
