@@ -12,9 +12,7 @@ The second proof employs a probabilistic evaluation based on Shannon Entropy to 
 How it works:
  * Entropy Mapping: The system builds a frequency table of all characters in the dictionary. Rare characters receive a higher entropy score, as they provide more unique information for identification.
  * Information Density Calculation: The algorithm calculates the total information content of the abbreviation and compares it against the total information content of each candidate word.
- * Probabilistic Matching: A score is generated based on the ratio of information density. Words that concentrate the abbreviation's information more efficiently (minimizing "noise" from common characters) are ranked higher.
-
-This shift from arithmetic properties to Information Theory allows the algorithm to adapt dynamically to the linguistic context of the dictionary, ensuring that distinctive letters have a decisive impact on the final result.
+ * Probabilistic Matching: A score is generated based on the ratio of information density. Words that concentrate the abbreviation's information more efficiently (minimizing "noise" from common characters) are ranked higher. This shift from arithmetic properties to Information Theory allows the algorithm to adapt dynamically to the linguistic context of the dictionary, ensuring that distinctive letters have a decisive impact on the final result.
 ---
 
 ## Installation for Linux
