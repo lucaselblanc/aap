@@ -15,13 +15,11 @@ use std::fs;
 use std::io::{self, Write};
 
 fn main() {
-    let dictionary = match fs::read_to_string("dictionary[PT-BR].txt") {
-        Ok(content) => content.lines().map(|line| line.trim().to_uppercase()).collect::<Vec<String>>(),
-        Err(_) => {
-            println!("Erro: Arquivo 'dictionary[PT-BR].txt' não encontrado no diretório atual.");
-            return;
-        }
-    };
+    let content = include_str!("dictionary[PT-BR].txt");
+    let dictionary: Vec<String> = content
+        .lines()
+        .map(|line| line.trim().to_uppercase())
+        .collect();
     
     let entropy_table = build_entropy_table(&dictionary);
 
