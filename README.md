@@ -6,10 +6,15 @@ The Probabilistic Abbreviation Algorithm (PAA) is designed to recover the origin
 
 First Proof: It selects candidate words based on the natural order of numbers derived from the characters in both the abbreviation and the candidate words. This ensures that the sequence of letters in the abbreviation aligns with that in the candidate word.
 
-Second Proof: A probabilistic calculation is performed by comparing the differences between the prime and composite values associated with each letter. This step calculates a score by considering the relevance of prime and composite numbers in the context of the abbreviation, with each type of number playing a crucial role in determining the overall match.
+Second Proof: Information Density & Shannon Entropy
+The second proof employs a probabilistic evaluation based on Shannon Entropy to determine the most likely word for a given abbreviation. Instead of static weights, the algorithm calculates the Self-Information (Surprisal) of each character based on its frequency within the specific dictionary: `H(c) = -log2(P(c))`.
 
-This approach is primarily based on arithmetic operations involving both prime and composite numbers, where each type of number contributes significantly to the final scoring of potential word matches.
+How it works:
+ * Entropy Mapping: The system builds a frequency table of all characters in the dictionary. Rare characters receive a higher entropy score, as they provide more unique information for identification.
+ * Information Density Calculation: The algorithm calculates the total information content of the abbreviation and compares it against the total information content of each candidate word.
+ * Probabilistic Matching: A score is generated based on the ratio of information density. Words that concentrate the abbreviation's information more efficiently (minimizing "noise" from common characters) are ranked higher.
 
+This shift from arithmetic properties to Information Theory allows the algorithm to adapt dynamically to the linguistic context of the dictionary, ensuring that distinctive letters have a decisive impact on the final result.
 ---
 
 ## Installation for Linux
