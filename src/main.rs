@@ -1,5 +1,5 @@
 /******************************************************************************************************
- * This file is part of the AAP distribution: (https://github.com/lucaselblanc/aap) *
+ * This file is part of the AAP distribution: (https://github.com/lucaselblanc/aap)                   *
  * Copyright (c) 2024, 2025 Lucas Leblanc.                                                            *
  * Distributed under the MIT software license, see the accompanying.                                  *
  * file COPYING or https://www.opensource.org/licenses/mit-license.php.                               *
